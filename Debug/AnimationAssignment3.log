@@ -1,0 +1,4 @@
+﻿  main.cpp
+C:\Users\Steven\source\repos\AnimationAssignment3\src\Water.h(15,32): warning C4305: 'initializing': truncation from 'double' to 'float'
+C:\Users\Steven\source\repos\AnimationAssignment3\src\Water.h(16,33): warning C4305: 'initializing': truncation from 'double' to 'float'
+  AnimationAssignment3.vcxproj -> C:\Users\Steven\source\repos\AnimationAssignment3\Debug\AnimationAssignment3.exe
