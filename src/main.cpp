@@ -57,13 +57,14 @@ int main(void)
     environment.addWalls(rightWall);
     environment.updateMinMax();
 
-    const float restDensity = 0.001f;
-    const float gasConstant = 1.0f;
-    const float miu = 0.1f;
-    const float tensionCoef = 5.0f;
-    const float radius = 10.0f;
+    const float restDensity = 0.00000000001f;
+    const float gasConstant = 3.0f;
+    const float miu = 0.16f;
+    const float tensionCoef = 0.0f;
+    const float radius = 50.0f;
 
     bool startSimulate = false;
+    bool collision = true;
     float restDensityCopy = restDensity;
     float gasConstantCopy = gasConstant;
     float miuCopy = miu;
@@ -121,23 +122,25 @@ int main(void)
             
             ImGui::SliderFloat("Rest density", &restDensityCopy, 0.0, 1.0);
 
-            ImGui::SliderFloat("Gas constant", &gasConstantCopy, 0.0, 1.0);
+            ImGui::SliderFloat("Gas constant", &gasConstantCopy, 0.0, 5.0);
 
-            ImGui::SliderFloat("Miu", &miuCopy, 0.0, 1.0);
+            ImGui::SliderFloat("Miu", &miuCopy, 0.0, 2.0);
 
-            ImGui::SliderFloat("Tension Coefficient", &tensionCoefCopy, 0.0, 10.0);
+            ImGui::SliderFloat("Tension Coefficient", &tensionCoefCopy, 0.0, 3.0);
 
-            ImGui::SliderFloat("Radius", &radiusCopy, 0.0, 20.0);
+            ImGui::SliderFloat("Radius", &radiusCopy, 0.0, 100.0);
+
+            ImGui::Checkbox("Collision", &collision);
 
             if (ImGui::Button("Apply variables"))
             {
                 water.updateParticleNumber(particleNumber);
                 water.updateVariables();
-                water.restDensity = restDensity;
-                water.gasConstant = gasConstant;
-                water.miu = miu;
-                water.tensionCoef = tensionCoef;
-                water.radius = radius;
+                water.restDensity = restDensityCopy;
+                water.gasConstant = gasConstantCopy;
+                water.miu = miuCopy;
+                water.tensionCoef = tensionCoefCopy;
+                water.radius = radiusCopy;
             }
 
             ImGui::SameLine();
@@ -153,11 +156,14 @@ int main(void)
 
                 water.updateParticleNumber(particleNumber);
                 water.updateVariables();
-                water.restDensity = restDensity;
-                water.gasConstant = gasConstant;
-                water.miu = miu;
-                water.tensionCoef = tensionCoef;
-                water.radius = radius;
+                water.restDensity = restDensityCopy;
+                water.gasConstant = gasConstantCopy;
+                water.miu = miuCopy;
+                water.tensionCoef = tensionCoefCopy;
+                water.radius = radiusCopy;
+
+                water.findNeighbourParticles();
+                water.findRestDensity();
             }
 
             ImGui::SameLine();
@@ -192,11 +198,10 @@ int main(void)
         {
             water.findNeighbourParticles();
             water.findDensityAndPressure();
-            water.findColorField();
             water.updateParticleForce();
             water.updateAcceleration();
             water.updateParticlePosition(deltaTime);
-            water.checkCollision(environment);
+            water.checkCollision(environment, collision);
 
             //water.update(deltaTime);
         }

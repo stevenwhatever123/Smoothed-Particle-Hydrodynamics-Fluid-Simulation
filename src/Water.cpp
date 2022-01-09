@@ -38,19 +38,21 @@ float Water::getPoly6Kernal(float radius, glm::vec2 positionDifference)
 };
 
 // A derivative of the poly 6 kernal
-float Water::getPoly6GradKernal(float radius, glm::vec2 positionDifference)
+glm::vec2 Water::getPoly6GradKernal(float radius, glm::vec2 positionDifference)
 {
     float r = glm::length(positionDifference);
     if (r >= 0 && r <= radius)
     {
         float diff = (radius * radius) - (r * r);
 
-        float returnVal = (945 / (64 * PI * std::pow(radius, 9))) * (diff * diff);
+        float scalar = (945 / (32 * PI * std::pow(radius, 9))) * (diff * diff);
+
+        glm::vec2 returnVal(-positionDifference.x * scalar, -positionDifference.y * scalar);
 
         return returnVal;
     }
 
-    return 0;
+    return glm::vec2(0.0, 0.0);
 };
 
 // A laplacian of the poly 6 kernal
@@ -61,7 +63,7 @@ float Water::getPoly6LaplacianKernal(float radius, glm::vec2 positionDifference)
     {
         float diff = (radius * radius) - (r * r);
 
-        float returnVal = (1890 / (64 * PI * std::pow(radius, 9))) * (diff);
+        float returnVal = (945 / (8 * PI * std::pow(radius, 9))) * (diff * diff) * ((r * r) - (3 * diff / 4));
 
         return returnVal;
     }
@@ -76,7 +78,7 @@ float Water::getSpikyGradKernal(float radius, glm::vec2 positionDifference)
     {
         float diff = (radius - r);
 
-        float returnVal = (45 / (PI * std::pow(radius, 6))) * (diff * diff);
+        float returnVal = (-45 / (PI * std::pow(radius, 6))) * (diff * diff);
 
         return returnVal;
     }
@@ -103,6 +105,25 @@ float Water::getViscosityKernal(float radius, glm::vec2 positionDifference)
     }
 
     return 0;
+};
+
+void Water::findRestDensity()
+{
+    for (int i = 0; i < waterParticles.size(); i++)
+    {
+        float restDensity = 0.0f;
+        for (int j = 0; j < waterParticles[i].neighbours.size(); j++)
+        {
+            // According to Müller's paper
+            // density is roughly the sum of all neighbour's mass 
+            // multiply with the smoothing kernal
+            int neighbourIndex = waterParticles[i].neighbours[j];
+            float otherMass = waterParticles[neighbourIndex].mass;
+            glm::vec2 diff = waterParticles[i].position - waterParticles[neighbourIndex].position;
+            restDensity += otherMass * getPoly6Kernal(radius, diff);
+        }
+        waterParticles[i].restDensity = restDensity;
+    }
 };
 
 // Find neighbour particles within a certain radius
@@ -145,35 +166,9 @@ void Water::findDensityAndPressure()
             glm::vec2 diff = waterParticles[i].position - waterParticles[neighbourIndex].position;
             density += otherMass * getPoly6Kernal(radius, diff);
         }
-        waterParticles[i].density = std::max(density, restDensity);
+        waterParticles[i].density = std::max(density, waterParticles[i].restDensity);
         // Ideal gas state, equation 12 from the paper
-        waterParticles[i].pressure = gasConstant * (waterParticles[i].density - restDensity);
-    }
-};
-
-void Water::findColorField()
-{
-    // Color Field
-    // Gradient
-    // Surface Normal
-    for (int i = 0; i < waterParticles.size(); i++)
-    {
-        float colorField = 0.0f;
-        float colorFieldGradient = 0.0f;
-        float colorFieldLaplacian = 0.0f;
-        for (int j = 0; j < waterParticles[i].neighbours.size(); j++)
-        {
-            int neighbourIndex = waterParticles[i].neighbours[j];
-            float otherMass = waterParticles[neighbourIndex].mass;
-            float otherDensity = waterParticles[neighbourIndex].density;
-            glm::vec2 diff = waterParticles[i].position - waterParticles[neighbourIndex].position;
-            colorField += (otherMass * (1 / otherDensity)) * getPoly6Kernal(radius, diff);
-            colorFieldGradient += (otherMass * (1 / otherDensity)) * getPoly6GradKernal(radius, diff);
-            colorFieldLaplacian += (otherMass * (1 / otherDensity)) * getPoly6LaplacianKernal(radius, diff);
-        }
-        waterParticles[i].colorField = colorField;
-        waterParticles[i].colorFieldGrad = colorFieldGradient;
-        waterParticles[i].colorFieldLaplacian = colorFieldLaplacian;
+        waterParticles[i].pressure = gasConstant * (waterParticles[i].density - waterParticles[i].restDensity);
     }
 };
 
@@ -206,7 +201,7 @@ void Water::updateVariables()
     }
 };
 
-void Water::checkCollision(Environment environment)
+void Water::checkCollision(Environment environment, bool particleCollision)
 {
     // Box collision
     for (int i = 0; i < waterParticles.size(); i++)
@@ -214,13 +209,16 @@ void Water::checkCollision(Environment environment)
         waterParticles[i].checkCollision(environment);
     }
 
-    // Water Particle collision
-    for (int i = 0; i < waterParticles.size(); i++)
+    if (particleCollision)
     {
-        for (int j = 0; j < waterParticles.size(); j++)
+        // Water Particle collision
+        for (int i = 0; i < waterParticles.size(); i++)
         {
-            if(i != j)
-                waterParticles[i].checkCollisionWithOtherParticles(waterParticles[j], 2);
+            for (int j = 0; j < waterParticles.size(); j++)
+            {
+                if (i != j)
+                    waterParticles[i].checkCollisionWithOtherParticles(waterParticles[j], 5);
+            }
         }
     }
 };
@@ -246,6 +244,10 @@ void Water::updateParticleForce()
     for (int i = 0; i < waterParticles.size(); i++)
     {
         glm::vec2 fieldForce(0.0, 0.0);
+        glm::vec2 viscosityField(0.0, 0.0);
+        float colorField = 0.0f;
+        glm::vec2 colorFieldGradient(0.0, 0.0);
+        float colorFieldLaplacian = 0.0f;
         for (int j = 0; j < waterParticles[i].neighbours.size(); j++)
         {
             // Force due to pressure
@@ -265,18 +267,26 @@ void Water::updateParticleForce()
             // Using equation 14 from the paper
             // And viscosity kernal
             glm::vec2 velocityDifference = waterParticles[neighbourIndex].velocity - waterParticles[i].velocity;
-            fieldForce += miu * (otherMass * (velocityDifference / otherDensity) * getViscosityKernal(radius, positionDifference));
+            viscosityField += (otherMass * (velocityDifference / otherDensity) * getViscosityKernal(radius, positionDifference));
+            //fieldForce += miu * (otherMass * (velocityDifference / otherDensity) * getViscosityKernal(radius, positionDifference));
 
 
             // Surface tension
-            // Find surface normal first
-            float threshold = 0.00000000001f;
-            // Make sure we're not dividing something by 0
-            float n = std::max(waterParticles[i].colorFieldGrad, threshold);
-            float surfaceNormal = -waterParticles[i].colorFieldLaplacian / std::abs(n);
-
-            fieldForce += tensionCoef * surfaceNormal * n;
+            // Find colour field
+            colorField += (otherMass * (1 / otherDensity)) * getPoly6Kernal(radius, positionDifference);
+            colorFieldGradient += (otherMass * (1 / otherDensity)) * getPoly6GradKernal(radius, positionDifference);
+            colorFieldLaplacian += (otherMass * (1 / otherDensity)) * getPoly6LaplacianKernal(radius, positionDifference);
         }
+
+        // Viscosity
+        fieldForce += miu * viscosityField;
+
+        // Surface Tension
+        //float k = -colorFieldLaplacian;
+        //fieldForce += tensionCoef * k * colorFieldGradient;
+        glm::vec2 n = colorFieldGradient;
+        glm::vec2 k = -colorFieldLaplacian / glm::normalize(n);
+        fieldForce += tensionCoef * k * n;
 
         // Acceleration due to gravity
         fieldForce += glm::vec2(0, -9.81);

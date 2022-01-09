@@ -13,10 +13,12 @@ public:
 	glm::vec2 acceleration;
 	float mass = 1.0f;
 
-	float restCoef = 1.0f;
+	float particleRestCoef = 1.0f;
+	float restCoef = 0.5f;
 
 	std::vector<int> neighbours;
-	float density;
+	float restDensity = 0.0;
+	float density = 1.0;
 	float pressure;
 	float colorField;
 	float colorFieldGrad;

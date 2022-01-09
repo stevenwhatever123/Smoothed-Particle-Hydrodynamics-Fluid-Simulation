@@ -98,8 +98,8 @@ void WaterParticle::checkCollisionWithOtherParticles(WaterParticle other, float 
 		float i = (-(1.0f + restCoef) * vn) / (im1 + im2);
 		glm::vec2 impulse = glm::normalize(mtd) * i;
 
-		velocity = (velocity + (impulse * im1)) * restCoef;
-		other.velocity = (other.velocity - (impulse * im2)) * restCoef;
+		velocity = (velocity + (impulse * im1 * particleRestCoef));
+		other.velocity = (other.velocity - (impulse * im2 * particleRestCoef));
 	}
 };
 
@@ -108,7 +108,7 @@ void WaterParticle::pushPoint(glm::vec2 closestPoint)
 	glm::vec2 pushVector = closestPoint - position;
 
 	position = closestPoint + (pushVector * restCoef);
-	velocity = pushVector * restCoef;
+	velocity = velocity * -restCoef;
 };
 
 void WaterParticle::update(float deltaTime)
@@ -130,7 +130,7 @@ void WaterParticle::updateAcceleration()
 
 void WaterParticle::Render()
 {
-	glPointSize(5);
+	glPointSize(10);
 	glBegin(GL_POINTS);
 	glColor3f(0.0f, 0.0f, 1.0f);
 	glVertex2f(position.x, position.y);

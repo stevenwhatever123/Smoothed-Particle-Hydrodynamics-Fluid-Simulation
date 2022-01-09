@@ -17,7 +17,7 @@ void Environment::addWalls(Wall wall)
 
 void Environment::updateMinMax()
 {
-	float offset = 4.0f;
+	float offset = 7.0f;
 	for (int i = 0; i < walls.size(); i++)
 	{
 		// Point 1
