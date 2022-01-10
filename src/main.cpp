@@ -57,15 +57,13 @@ int main(void)
     environment.addWalls(rightWall);
     environment.updateMinMax();
 
-    const float restDensity = 0.00000000001f;
-    const float gasConstant = 3.0f;
-    const float miu = 0.16f;
-    const float tensionCoef = 0.0f;
+    const float gasConstant = 14.755f;
+    const float miu = 0.83f;
+    const float tensionCoef = 2.127f;
     const float radius = 50.0f;
 
     bool startSimulate = false;
     bool collision = true;
-    float restDensityCopy = restDensity;
     float gasConstantCopy = gasConstant;
     float miuCopy = miu;
     float tensionCoefCopy = tensionCoef;
@@ -119,10 +117,8 @@ int main(void)
             //ImGui::Checkbox("Another Window", &show_another_window);
             //ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
             ImGui::SliderInt("Water particles", &particleNumber, 1, 1000);
-            
-            ImGui::SliderFloat("Rest density", &restDensityCopy, 0.0, 1.0);
 
-            ImGui::SliderFloat("Gas constant", &gasConstantCopy, 0.0, 5.0);
+            ImGui::SliderFloat("Gas constant", &gasConstantCopy, 0.0, 20.0);
 
             ImGui::SliderFloat("Miu", &miuCopy, 0.0, 2.0);
 
@@ -136,11 +132,13 @@ int main(void)
             {
                 water.updateParticleNumber(particleNumber);
                 water.updateVariables();
-                water.restDensity = restDensityCopy;
                 water.gasConstant = gasConstantCopy;
                 water.miu = miuCopy;
                 water.tensionCoef = tensionCoefCopy;
                 water.radius = radiusCopy;
+
+                water.findNeighbourParticles();
+                water.findRestDensity();
             }
 
             ImGui::SameLine();
@@ -148,7 +146,6 @@ int main(void)
             if (ImGui::Button("Reset variables"))
             {
                 particleNumber = 100;
-                restDensityCopy = restDensity;
                 gasConstantCopy = gasConstant;
                 miuCopy = miu;
                 tensionCoefCopy = tensionCoef;
@@ -156,7 +153,6 @@ int main(void)
 
                 water.updateParticleNumber(particleNumber);
                 water.updateVariables();
-                water.restDensity = restDensityCopy;
                 water.gasConstant = gasConstantCopy;
                 water.miu = miuCopy;
                 water.tensionCoef = tensionCoefCopy;
